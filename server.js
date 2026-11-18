@@ -2977,7 +2977,7 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
           return false;
         }
       })();
-      const diagnosticsWindowOpen = Date.now() < Date.parse("2026-11-18T19:05:00Z");
+      const diagnosticsWindowOpen = Date.now() < Date.parse("2026-11-18T19:25:00Z");
       const safeHost = (value) => { try { return value ? new URL(value).hostname : null; } catch { return "invalid"; } };
       if (embeddedAuthPath && instagramWebView && diagnosticsWindowOpen) {
         console.warn(JSON.stringify({
@@ -2990,15 +2990,17 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
         }));
       }
       if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback && !instagramOriginAuthFallback) {
-        if (embeddedAuthPath && instagramWebView && diagnosticsWindowOpen) {
-          console.warn(JSON.stringify({
-            event: "instagram_auth_origin_rejected",
+        if (embeddedAuthPath && diagnosticsWindowOpen) {
+          console.warn({
+            event: "auth_origin_rejected",
             path: url.pathname,
             requestHost: url.host,
             originHost: safeHost(origin),
             refererHost: safeHost(referer),
             fetchSite,
-          }));
+            instagramUserAgent: /\bInstagram\b/i.test(userAgent),
+            iabMarker: /\bIABMV\/\d/i.test(userAgent),
+          });
         }
         return new Response("Forbidden", { status: 403 });
       }
