@@ -2977,10 +2977,20 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
           return false;
         }
       })();
+      const diagnosticsWindowOpen = Date.now() < Date.parse("2026-11-18T18:56:00Z");
+      const safeHost = (value) => { try { return value ? new URL(value).hostname : null; } catch { return "invalid"; } };
+      if (embeddedAuthPath && instagramWebView && diagnosticsWindowOpen) {
+        console.warn(JSON.stringify({
+          event: "instagram_auth_request",
+          path: url.pathname,
+          requestHost: url.host,
+          originHost: safeHost(origin),
+          refererHost: safeHost(referer),
+          fetchSite,
+        }));
+      }
       if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback && !instagramOriginAuthFallback) {
-        const diagnosticsWindowOpen = Date.now() < Date.parse("2026-11-18T18:41:00Z");
         if (embeddedAuthPath && instagramWebView && diagnosticsWindowOpen) {
-          const safeHost = (value) => { try { return value ? new URL(value).hostname : null; } catch { return "invalid"; } };
           console.warn(JSON.stringify({
             event: "instagram_auth_origin_rejected",
             path: url.pathname,
