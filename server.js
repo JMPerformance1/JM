@@ -2966,24 +2966,15 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
       // For login/signup, accept HTTPS origins owned by Instagram (or its Android
       // app origin) on this canonical host; unrelated origins remain rejected.
       const embeddedAuthPath = url.pathname === "/api/auth/login" || url.pathname === "/api/auth/signup";
-      const embeddedAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin && (!origin || origin === "null");
-      const userAgent = request.headers.get("user-agent") || "";
-      const instagramWebView = /\bInstagram\b/i.test(userAgent);
-      // Instagram WebViews can change or omit their User-Agent markers. Accept
-      // their explicit HTTPS/android-app origin only for login/signup on the
-      // canonical JM host; unrelated origins remain rejected.
-      const instagramOriginAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin && (() => {
-        try {
-          const parsed = new URL(origin);
-          return (parsed.protocol === "https:" && (parsed.hostname === "instagram.com" || parsed.hostname.endsWith(".instagram.com"))) || (parsed.protocol === "android-app:" && parsed.hostname === "com.instagram.android");
-        } catch {
-          return false;
-        }
-      })();
-      if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback && !instagramOriginAuthFallback) {
+      // Login and signup are unauthenticated JSON endpoints. Instagram's
+      // Android/iOS WebViews can send a parent-app Origin that changes across
+      // releases. Permit these two routes only when the request target itself
+      // is the configured canonical app origin; every other API route keeps
+      // the strict origin check below.
+      const embeddedAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin;
+      if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback) {
         return new Response("Forbidden", { status: 403 });
-      }
-    }
+      }    }
     const me = await appAuth(env, request);
     const professorStudentPath = url.pathname.match(/^\/api\/professor\/students\/(\d+)(?:\/|$)/);
     if (professorStudentPath && me.isOwner && !(await professionalOwnsStudent(env, me, Number(professorStudentPath[1])))) {
