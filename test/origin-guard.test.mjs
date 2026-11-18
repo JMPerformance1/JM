@@ -41,6 +41,11 @@ test("accepts auth requests on the canonical host when embedded WebView metadata
   assert.equal(check({ url: "https://jmperformance.app.br/api/auth/signup" }), null);
 });
 
+test("accepts opaque Origin only with same-origin fetch metadata", () => {
+  assert.equal(check({ headers: { origin: "null", "sec-fetch-site": "same-origin" } }), null);
+  assert.equal(check({ headers: { origin: "null" } }).status, 403);
+});
+
 test("rejects embedded auth fallback for cross-site requests", () => {
   assert.equal(check({ headers: { "sec-fetch-site": "cross-site" } }).status, 403);
 });
