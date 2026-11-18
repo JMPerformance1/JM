@@ -2977,7 +2977,20 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
           return false;
         }
       })();
-      if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback && !instagramOriginAuthFallback) return new Response("Forbidden", { status: 403 });
+      if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback && !instagramOriginAuthFallback) {
+        if (embeddedAuthPath && instagramWebView) {
+          const safeHost = (value) => { try { return value ? new URL(value).hostname : null; } catch { return "invalid"; } };
+          console.warn(JSON.stringify({
+            event: "instagram_auth_origin_rejected",
+            path: url.pathname,
+            requestHost: url.host,
+            originHost: safeHost(origin),
+            refererHost: safeHost(referer),
+            fetchSite,
+          }));
+        }
+        return new Response("Forbidden", { status: 403 });
+      }
     }
     const me = await appAuth(env, request);
     const professorStudentPath = url.pathname.match(/^\/api\/professor\/students\/(\d+)(?:\/|$)/);
