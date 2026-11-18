@@ -2974,7 +2974,8 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
       const embeddedAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin;
       if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback) {
         return new Response("Forbidden", { status: 403 });
-      }    }
+      }
+    }
     const me = await appAuth(env, request);
     const professorStudentPath = url.pathname.match(/^\/api\/professor\/students\/(\d+)(?:\/|$)/);
     if (professorStudentPath && me.isOwner && !(await professionalOwnsStudent(env, me, Number(professorStudentPath[1])))) {
