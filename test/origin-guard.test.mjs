@@ -65,9 +65,19 @@ test("accepts Instagram IAB origin on canonical login and signup routes", () => 
   assert.equal(check({ url: "https://jmperformance.app.br/api/auth/signup", headers }), null);
 });
 
-test("still rejects explicit foreign Origins outside Instagram IAB auth", () => {
+test("accepts Instagram origin without an IABMV marker", () => {
+  assert.equal(check({ headers: { origin: "https://www.instagram.com", "user-agent": "Instagram 456 Android" } }), null);
+});
+
+test("accepts the exact Instagram Android app origin on auth routes", () => {
+  const headers = { origin: "android-app://com.instagram.android", "user-agent": "Instagram 456 Android" };
+  assert.equal(check({ headers }), null);
+  assert.equal(check({ url: "https://jmperformance.app.br/api/auth/signup", headers }), null);
+});
+
+test("still rejects explicit foreign Origins outside Instagram auth", () => {
   assert.equal(check({ headers: { origin: "https://instagram.com", referer: "https://l.instagram.com/", "sec-fetch-site": "cross-site" } }).status, 403);
-  assert.equal(check({ headers: { origin: "https://attacker.example", "user-agent": "Instagram 456; IABMV/1" } }).status, 403);
+  assert.equal(check({ headers: { origin: "https://attacker.example", "user-agent": "Instagram 456 Android" } }).status, 403);
 });
 
 test("does not extend missing-metadata fallback to other API routes", () => {
