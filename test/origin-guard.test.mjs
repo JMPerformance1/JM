@@ -47,6 +47,7 @@ test("accepts Instagram WebView same-origin metadata with an external Referer", 
 
 test("accepts opaque Origin only when same-origin metadata is present", () => {
   assert.equal(check({ headers: { origin: "null", "sec-fetch-site": "same-origin" } }), null);
+  assert.equal(check({ headers: { origin: "null", referer: "https://jmperformance.app.br/membros/", "sec-fetch-site": "same-origin" } }), null);
   assert.equal(check({ headers: { origin: "null" } }).status, 403);
 });
 
