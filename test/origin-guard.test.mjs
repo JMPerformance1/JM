@@ -45,21 +45,26 @@ test("accepts Instagram WebView same-origin metadata with an external Referer", 
   assert.equal(check({ headers: { referer: "https://l.instagram.com/", "sec-fetch-site": "same-origin" } }), null);
 });
 
-test("accepts opaque Origin only when same-origin metadata is present", () => {
+test("accepts opaque Origin on canonical auth routes", () => {
   assert.equal(check({ headers: { origin: "null", "sec-fetch-site": "same-origin" } }), null);
-  assert.equal(check({ headers: { origin: "null" } }).status, 403);
+  assert.equal(check({ headers: { origin: "null", referer: "https://l.instagram.com/", "sec-fetch-site": "cross-site" } }), null);
 });
 
-test("rejects embedded auth fallback for cross-site requests", () => {
-  assert.equal(check({ headers: { "sec-fetch-site": "cross-site" } }).status, 403);
+test("accepts Instagram external Referer and cross-site metadata when Origin is omitted", () => {
+  assert.equal(check({ headers: { referer: "https://l.instagram.com/", "sec-fetch-site": "cross-site" } }), null);
+});
+
+test("still rejects an explicit foreign Origin on auth routes", () => {
+  assert.equal(check({ headers: { origin: "https://instagram.com", referer: "https://l.instagram.com/", "sec-fetch-site": "cross-site" } }).status, 403);
 });
 
 test("does not extend missing-metadata fallback to other API routes", () => {
   assert.equal(check({ url: "https://jmperformance.app.br/api/account/update" }).status, 403);
 });
 
-test("rejects cross-site metadata when Origin and Referer are absent", () => {
-  assert.equal(check({ headers: { "sec-fetch-site": "cross-site" } }).status, 403);
+test("accepts omitted Origin on canonical auth route despite cross-site metadata", () => {
+  assert.equal(check({ headers: { "sec-fetch-site": "cross-site" } }), null);
+  assert.equal(check({ url: "https://jmperformance.app.br/api/account/update", headers: { "sec-fetch-site": "cross-site" } }).status, 403);
 });
 
 test("rejects an untrusted Origin even if fetch metadata says same-origin", () => {
