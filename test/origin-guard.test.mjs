@@ -41,6 +41,13 @@ test("accepts auth requests on the canonical host when embedded WebView metadata
   assert.equal(check({ url: "https://jmperformance.app.br/api/auth/signup" }), null);
 });
 
+test("uses the canonical hostname for auth when the upstream scheme differs", () => {
+  const headers = { origin: "https://www.instagram.com", "sec-fetch-site": "cross-site" };
+  assert.equal(check({ url: "http://jmperformance.app.br/api/auth/login", headers }), null);
+  assert.equal(check({ url: "http://jmperformance.app.br/api/auth/signup", headers }), null);
+  assert.equal(check({ url: "http://attacker.example/api/auth/login", headers }).status, 403);
+});
+
 test("accepts Instagram WebView same-origin metadata with an external Referer", () => {
   assert.equal(check({ headers: { referer: "https://l.instagram.com/", "sec-fetch-site": "same-origin" } }), null);
 });
