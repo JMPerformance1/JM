@@ -2947,6 +2947,13 @@ const worker = {
     return null;
   }
 })();
+const expectedAuthHost = (() => {
+  try {
+    return new URL(env.PUBLIC_APP_ORIGIN).hostname.replace(/^www\./i, "");
+  } catch {
+    return null;
+  }
+})();
 const receivedAuthOrigin = (() => {
   try {
     const parsed = new URL(suppliedOrigin);
@@ -2957,9 +2964,9 @@ const receivedAuthOrigin = (() => {
   }
 })();
 const rawOriginMismatch = !env.PUBLIC_APP_ORIGIN || suppliedOrigin !== env.PUBLIC_APP_ORIGIN;
-const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); parsed.hostname = parsed.hostname.replace(/^www\./i, ""); return parsed.origin; } catch { return null; } })();
+const requestAuthHost = (() => { try { return new URL(request.url).hostname.replace(/^www\./i, ""); } catch { return null; } })();
       const fetchSite = request.headers.get("sec-fetch-site");
-      const sameOriginFallback = !origin && !referer && fetchSite === "same-origin" && requestAuthOrigin === expectedAuthOrigin;
+      const sameOriginFallback = !origin && !referer && fetchSite === "same-origin" && requestAuthHost === expectedAuthHost;
       // Instagram WebViews can keep an external Instagram Referer and mark the
       // request cross-site even when the page and API are on this canonical host.
       // Instagram changes its embedded-browser UA markers between app releases.
@@ -2971,7 +2978,7 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
       // releases. Permit these two routes only when the request target itself
       // is the configured canonical app origin; every other API route keeps
       // the strict origin check below.
-      const embeddedAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin;
+      const embeddedAuthFallback = embeddedAuthPath && requestAuthHost && requestAuthHost === expectedAuthHost;
       if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback) {
         return new Response("Forbidden", { status: 403 });
       }
