@@ -2962,17 +2962,17 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
       const sameOriginFallback = !origin && !referer && fetchSite === "same-origin" && requestAuthOrigin === expectedAuthOrigin;
       // Instagram WebViews can keep an external Instagram Referer and mark the
       // request cross-site even when the page and API are on this canonical host.
-      // For public auth entry points, trust the actual request host only when the
-      // browser omitted Origin or sent an opaque Origin. Explicit foreign Origins
-      // remain rejected, as do these fallbacks on every other route.
+      // Instagram changes its embedded-browser UA markers between app releases.
+      // For login/signup, accept HTTPS origins owned by Instagram (or its Android
+      // app origin) on this canonical host; unrelated origins remain rejected.
       const embeddedAuthPath = url.pathname === "/api/auth/login" || url.pathname === "/api/auth/signup";
       const embeddedAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin && (!origin || origin === "null");
       const userAgent = request.headers.get("user-agent") || "";
-      const instagramWebView = /\bInstagram\b/i.test(userAgent) && /\bIABMV\/\d/i.test(userAgent);
+      const instagramWebView = /\bInstagram\b/i.test(userAgent);
       const instagramOriginAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin && instagramWebView && (() => {
         try {
           const parsed = new URL(origin);
-          return parsed.protocol === "https:" && (parsed.hostname === "instagram.com" || parsed.hostname.endsWith(".instagram.com"));
+          return (parsed.protocol === "https:" && (parsed.hostname === "instagram.com" || parsed.hostname.endsWith(".instagram.com"))) || (parsed.protocol === "android-app:" && parsed.hostname === "com.instagram.android");
         } catch {
           return false;
         }
