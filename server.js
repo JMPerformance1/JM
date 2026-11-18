@@ -2977,7 +2977,7 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
           return false;
         }
       })();
-      const diagnosticsWindowOpen = Date.now() < Date.parse("2026-11-18T18:56:00Z");
+      const diagnosticsWindowOpen = Date.now() < Date.parse("2026-11-18T19:05:00Z");
       const safeHost = (value) => { try { return value ? new URL(value).hostname : null; } catch { return "invalid"; } };
       if (embeddedAuthPath && instagramWebView && diagnosticsWindowOpen) {
         console.warn(JSON.stringify({
