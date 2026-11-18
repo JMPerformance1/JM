@@ -2978,7 +2978,8 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
         }
       })();
       if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback && !instagramOriginAuthFallback) {
-        if (embeddedAuthPath && instagramWebView) {
+        const diagnosticsWindowOpen = Date.now() < Date.parse("2026-11-18T18:41:00Z");
+        if (embeddedAuthPath && instagramWebView && diagnosticsWindowOpen) {
           const safeHost = (value) => { try { return value ? new URL(value).hostname : null; } catch { return "invalid"; } };
           console.warn(JSON.stringify({
             event: "instagram_auth_origin_rejected",
