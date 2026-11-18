@@ -2969,7 +2969,10 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
       const embeddedAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin && (!origin || origin === "null");
       const userAgent = request.headers.get("user-agent") || "";
       const instagramWebView = /\bInstagram\b/i.test(userAgent);
-      const instagramOriginAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin && instagramWebView && (() => {
+      // Instagram WebViews can change or omit their User-Agent markers. Accept
+      // their explicit HTTPS/android-app origin only for login/signup on the
+      // canonical JM host; unrelated origins remain rejected.
+      const instagramOriginAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin && (() => {
         try {
           const parsed = new URL(origin);
           return (parsed.protocol === "https:" && (parsed.hostname === "instagram.com" || parsed.hostname.endsWith(".instagram.com"))) || (parsed.protocol === "android-app:" && parsed.hostname === "com.instagram.android");
@@ -2977,31 +2980,7 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
           return false;
         }
       })();
-      const diagnosticsWindowOpen = Date.now() < Date.parse("2026-11-18T19:25:00Z");
-      const safeHost = (value) => { try { return value ? new URL(value).hostname : null; } catch { return "invalid"; } };
-      if (embeddedAuthPath && instagramWebView && diagnosticsWindowOpen) {
-        console.warn(JSON.stringify({
-          event: "instagram_auth_request",
-          path: url.pathname,
-          requestHost: url.host,
-          originHost: safeHost(origin),
-          refererHost: safeHost(referer),
-          fetchSite,
-        }));
-      }
       if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback && !instagramOriginAuthFallback) {
-        if (embeddedAuthPath && diagnosticsWindowOpen) {
-          console.warn({
-            event: "auth_origin_rejected",
-            path: url.pathname,
-            requestHost: url.host,
-            originHost: safeHost(origin),
-            refererHost: safeHost(referer),
-            fetchSite,
-            instagramUserAgent: /\bInstagram\b/i.test(userAgent),
-            iabMarker: /\bIABMV\/\d/i.test(userAgent),
-          });
-        }
         return new Response("Forbidden", { status: 403 });
       }
     }
