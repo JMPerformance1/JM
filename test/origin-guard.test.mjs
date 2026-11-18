@@ -65,11 +65,7 @@ test("accepts Instagram IAB origin on canonical login and signup routes", () => 
   assert.equal(check({ url: "https://jmperformance.app.br/api/auth/signup", headers }), null);
 });
 
-test("accepts Instagram origin without an IABMV marker", () => {
-  assert.equal(check({ headers: { origin: "https://www.instagram.com", "user-agent": "Instagram 456 Android" } }), null);
-});
-
-test("accepts Instagram origin when the embedded browser omits its User-Agent marker", () => {
+test("accepts Instagram WebView origins on canonical login and signup endpoints", () => {
   const headers = { origin: "https://www.instagram.com", referer: "https://l.instagram.com/", "sec-fetch-site": "cross-site" };
   assert.equal(check({ headers }), null);
   assert.equal(check({ url: "https://jmperformance.app.br/api/auth/signup", headers }), null);
@@ -83,7 +79,15 @@ test("accepts the exact Instagram Android app origin on auth routes", () => {
 
 test("still rejects explicit foreign Origins outside Instagram auth", () => {
   assert.equal(check({ url: "https://jmperformance.app.br/api/account/update", headers: { origin: "https://instagram.com", referer: "https://l.instagram.com/", "sec-fetch-site": "cross-site" } }).status, 403);
-  assert.equal(check({ headers: { origin: "https://attacker.example", "user-agent": "Instagram 456 Android" } }).status, 403);
+  assert.equal(check({ url: "https://jmperformance.app.br/api/account/update", headers: { origin: "https://attacker.example", "user-agent": "Instagram 456 Android" } }).status, 403);
+});
+
+test("allows unknown WebView Origin only on canonical login and signup endpoints", () => {
+  const headers = { origin: "https://webview.example", "sec-fetch-site": "cross-site" };
+  assert.equal(check({ headers }), null);
+  assert.equal(check({ url: "https://jmperformance.app.br/api/auth/signup", headers }), null);
+  assert.equal(check({ url: "https://jmperformance.app.br/api/account/update", headers }).status, 403);
+  assert.equal(check({ url: "https://attacker.example/api/auth/login", headers }).status, 403);
 });
 
 test("does not extend missing-metadata fallback to other API routes", () => {
@@ -96,7 +100,7 @@ test("accepts omitted Origin on canonical auth route despite cross-site metadata
 });
 
 test("rejects an untrusted Origin even if fetch metadata says same-origin", () => {
-  assert.equal(check({ headers: { origin: "https://attacker.example", "sec-fetch-site": "same-origin" } }).status, 403);
+  assert.equal(check({ url: "https://jmperformance.app.br/api/account/update", headers: { origin: "https://attacker.example", "sec-fetch-site": "same-origin" } }).status, 403);
 });
 
 test("rejects same-origin metadata sent to a non-canonical request host", () => {
