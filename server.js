@@ -2958,8 +2958,13 @@ const receivedAuthOrigin = (() => {
 })();
 const rawOriginMismatch = !env.PUBLIC_APP_ORIGIN || suppliedOrigin !== env.PUBLIC_APP_ORIGIN;
 const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); parsed.hostname = parsed.hostname.replace(/^www\./i, ""); return parsed.origin; } catch { return null; } })();
-      const sameOriginFallback = !origin && !referer && request.headers.get("sec-fetch-site") === "same-origin" && requestAuthOrigin === expectedAuthOrigin;
-      if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback) return new Response("Forbidden", { status: 403 });
+      const fetchSite = request.headers.get("sec-fetch-site");
+      const sameOriginFallback = !origin && !referer && fetchSite === "same-origin" && requestAuthOrigin === expectedAuthOrigin;
+      // Instagram and other embedded WebViews may omit Fetch Metadata on same-site
+      // auth requests. Permit only login/signup on the canonical host, unless explicitly cross-site.
+      const embeddedAuthPath = url.pathname === "/api/auth/login" || url.pathname === "/api/auth/signup";
+      const embeddedAuthFallback = !origin && !referer && embeddedAuthPath && fetchSite !== "cross-site" && requestAuthOrigin === expectedAuthOrigin;
+      if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback) return new Response("Forbidden", { status: 403 });
     }
     const me = await appAuth(env, request);
     const professorStudentPath = url.pathname.match(/^\/api\/professor\/students\/(\d+)(?:\/|$)/);
