@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const workerSource = readFileSync(new URL("../server.js", import.meta.url), "utf8");
-const startMarker = 'const origin = request.headers.get("origin");';
-const endMarker = 'if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback && !instagramOriginAuthFallback) return new Response("Forbidden", { status: 403 });';
+const startMarker = 'if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {';
+const endMarker = 'const me = await appAuth(env, request);';
 const start = workerSource.indexOf(startMarker);
 const end = workerSource.indexOf(endMarker, start);
 
 assert.notEqual(start, -1, "origin guard start marker must exist");
 assert.notEqual(end, -1, "same-origin fallback guard must exist");
-const guardSource = workerSource.slice(start, end + endMarker.length);
+const guardSource = workerSource.slice(start, end);
 const runOriginGuard = new Function("request", "env", "url", guardSource + "\nreturn null;");
 const env = { PUBLIC_APP_ORIGIN: "https://jmperformance.app.br" };
 
