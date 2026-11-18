@@ -2960,10 +2960,13 @@ const rawOriginMismatch = !env.PUBLIC_APP_ORIGIN || suppliedOrigin !== env.PUBLI
 const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); parsed.hostname = parsed.hostname.replace(/^www\./i, ""); return parsed.origin; } catch { return null; } })();
       const fetchSite = request.headers.get("sec-fetch-site");
       const sameOriginFallback = !origin && !referer && fetchSite === "same-origin" && requestAuthOrigin === expectedAuthOrigin;
-      // Instagram and other embedded WebViews may omit Fetch Metadata on same-site
-      // auth requests. Permit only login/signup on the canonical host, unless explicitly cross-site.
+      // Instagram WebViews can keep an external Instagram Referer and mark the
+      // request cross-site even when the page and API are on this canonical host.
+      // For public auth entry points, trust the actual request host only when the
+      // browser omitted Origin or sent an opaque Origin. Explicit foreign Origins
+      // remain rejected, as do these fallbacks on every other route.
       const embeddedAuthPath = url.pathname === "/api/auth/login" || url.pathname === "/api/auth/signup";
-      const embeddedAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin && fetchSite !== "cross-site" && ((!origin && (!referer || fetchSite === "same-origin")) || (origin === "null" && !referer && fetchSite === "same-origin"));
+      const embeddedAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin && (!origin || origin === "null");
       if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback) return new Response("Forbidden", { status: 403 });
     }
     const me = await appAuth(env, request);
