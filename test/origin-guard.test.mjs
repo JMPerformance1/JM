@@ -41,6 +41,15 @@ test("accepts auth requests on the canonical host when embedded WebView metadata
   assert.equal(check({ url: "https://jmperformance.app.br/api/auth/signup" }), null);
 });
 
+test("accepts Instagram WebView same-origin metadata with an external Referer", () => {
+  assert.equal(check({ headers: { referer: "https://l.instagram.com/", "sec-fetch-site": "same-origin" } }), null);
+});
+
+test("accepts opaque Origin only when same-origin metadata is present", () => {
+  assert.equal(check({ headers: { origin: "null", "sec-fetch-site": "same-origin" } }), null);
+  assert.equal(check({ headers: { origin: "null" } }).status, 403);
+});
+
 test("rejects embedded auth fallback for cross-site requests", () => {
   assert.equal(check({ headers: { "sec-fetch-site": "cross-site" } }).status, 403);
 });
