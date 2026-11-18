@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 const workerSource = readFileSync(new URL("../server.js", import.meta.url), "utf8");
 const startMarker = 'const origin = request.headers.get("origin");';
-const endMarker = 'if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback) return new Response("Forbidden", { status: 403 });';
+const endMarker = 'if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback && !instagramOriginAuthFallback) return new Response("Forbidden", { status: 403 });';
 const start = workerSource.indexOf(startMarker);
 const end = workerSource.indexOf(endMarker, start);
 
@@ -54,8 +54,20 @@ test("accepts Instagram external Referer and cross-site metadata when Origin is 
   assert.equal(check({ headers: { referer: "https://l.instagram.com/", "sec-fetch-site": "cross-site" } }), null);
 });
 
-test("still rejects an explicit foreign Origin on auth routes", () => {
+test("accepts Instagram IAB origin on canonical login and signup routes", () => {
+  const headers = {
+    origin: "https://www.instagram.com",
+    referer: "https://l.instagram.com/",
+    "sec-fetch-site": "cross-site",
+    "user-agent": "Mozilla/5.0 (Linux; Android 14) Instagram 456.0.0.53.78 Android; IABMV/1",
+  };
+  assert.equal(check({ headers }), null);
+  assert.equal(check({ url: "https://jmperformance.app.br/api/auth/signup", headers }), null);
+});
+
+test("still rejects explicit foreign Origins outside Instagram IAB auth", () => {
   assert.equal(check({ headers: { origin: "https://instagram.com", referer: "https://l.instagram.com/", "sec-fetch-site": "cross-site" } }).status, 403);
+  assert.equal(check({ headers: { origin: "https://attacker.example", "user-agent": "Instagram 456; IABMV/1" } }).status, 403);
 });
 
 test("does not extend missing-metadata fallback to other API routes", () => {
