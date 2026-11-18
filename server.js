@@ -2963,7 +2963,7 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
       // Instagram and other embedded WebViews may omit Fetch Metadata on same-site
       // auth requests. Permit only login/signup on the canonical host, unless explicitly cross-site.
       const embeddedAuthPath = url.pathname === "/api/auth/login" || url.pathname === "/api/auth/signup";
-      const embeddedAuthFallback = !origin && !referer && embeddedAuthPath && fetchSite !== "cross-site" && requestAuthOrigin === expectedAuthOrigin;
+      const embeddedAuthFallback = (!origin || origin === "null" && fetchSite === "same-origin") && !referer && embeddedAuthPath && fetchSite !== "cross-site" && requestAuthOrigin === expectedAuthOrigin;
       if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback) return new Response("Forbidden", { status: 403 });
     }
     const me = await appAuth(env, request);
