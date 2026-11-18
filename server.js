@@ -2967,7 +2967,17 @@ const requestAuthOrigin = (() => { try { const parsed = new URL(request.url); pa
       // remain rejected, as do these fallbacks on every other route.
       const embeddedAuthPath = url.pathname === "/api/auth/login" || url.pathname === "/api/auth/signup";
       const embeddedAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin && (!origin || origin === "null");
-      if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback) return new Response("Forbidden", { status: 403 });
+      const userAgent = request.headers.get("user-agent") || "";
+      const instagramWebView = /\bInstagram\b/i.test(userAgent) && /\bIABMV\/\d/i.test(userAgent);
+      const instagramOriginAuthFallback = embeddedAuthPath && requestAuthOrigin === expectedAuthOrigin && instagramWebView && (() => {
+        try {
+          const parsed = new URL(origin);
+          return parsed.protocol === "https:" && (parsed.hostname === "instagram.com" || parsed.hostname.endsWith(".instagram.com"));
+        } catch {
+          return false;
+        }
+      })();
+      if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback && !instagramOriginAuthFallback) return new Response("Forbidden", { status: 403 });
     }
     const me = await appAuth(env, request);
     const professorStudentPath = url.pathname.match(/^\/api\/professor\/students\/(\d+)(?:\/|$)/);
