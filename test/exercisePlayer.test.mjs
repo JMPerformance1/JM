@@ -7,7 +7,10 @@ import { exercisePlayerScript, injectExercisePlayer } from "../utils/exercisePla
 test("injects the player script once before the closing body", () => {
   const html = "<!doctype html><html><body><main>App</main></body></html>";
   const result = injectExercisePlayer(html);
-  assert.match(result, /<script defer src="\/__jm\/exercise-player\.js" data-jm-exercise-player><\/script><\/body>/);
+  assert.match(result, /<script defer src="\/__jm\/exercise-player\.js\?v=20261119-2" data-jm-exercise-player><\/script><\/body>/);
+  assert.match(result, /<html data-jm-player-pending>/);
+  assert.match(result, /data-jm-player-guard/);
+  assert.match(result, /animation:jm-player-fallback 0s linear 2s forwards/);
   assert.equal(injectExercisePlayer(result), result);
 });
 
@@ -67,7 +70,9 @@ function mountInlineVideoLink(href) {
   const link = new MockElement("a");
   link.href = href;
   link.textContent = "Vídeo do exercício";
+  const documentElement = { removedAttributes: [], removeAttribute(name) { this.removedAttributes.push(name); } };
   const document = {
+    documentElement,
     body,
     querySelector: () => null,
     querySelectorAll: () => [link],
@@ -77,7 +82,7 @@ function mountInlineVideoLink(href) {
   };
   const window = { __jmExercisePlayerInstalled: false, location: { href: "https://jmperformance.app.br/membros/", origin: "https://jmperformance.app.br" } };
   vm.runInNewContext(exercisePlayerScript, { window, document, Element: MockElement, URL, URLSearchParams });
-  return { link, region: link.inserted?.element, documentListeners };
+  return { link, region: link.inserted?.element, documentListeners, documentElement };
 }
 
 test("intercepts valid YouTube links and preserves the start time in the embedded player", () => {
@@ -91,7 +96,7 @@ test("intercepts valid YouTube links and preserves the start time in the embedde
 });
 
 test("mounts exercise videos inline automatically and keeps an external fallback", () => {
-  const { link, region } = mountInlineVideoLink("https://www.youtube.com/watch?v=rrJIyZGlK8c&t=50s");
+  const { link, region, documentElement } = mountInlineVideoLink("https://www.youtube.com/watch?v=rrJIyZGlK8c&t=50s");
   assert.equal(link.hidden, true);
   assert.equal(link.dataset.jmInlinePlayerMounted, "true");
   assert.equal(region.dataset.jmInlinePlayer, "");
@@ -99,6 +104,7 @@ test("mounts exercise videos inline automatically and keeps an external fallback
   assert.equal(frame.src, "https://www.youtube.com/embed/rrJIyZGlK8c?playsinline=1&origin=https%3A%2F%2Fjmperformance.app.br&start=50");
   assert.equal(frame.loading, "lazy");
   assert.equal(region.children[1].href, "https://www.youtube.com/watch?v=rrJIyZGlK8c&t=50s");
+  assert.deepEqual(documentElement.removedAttributes, ["data-jm-player-pending"]);
 });
 
 test("intercepts Vimeo exercise links and leaves unrelated domains untouched", () => {
