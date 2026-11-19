@@ -33,6 +33,8 @@ class MockElement {
   append(...children) { this.children.push(...children); }
   remove() { this.removed = true; }
   focus() { this.focused = true; }
+  matches(selector) { return selector === "a[href]" && Boolean(this.href); }
+  insertAdjacentElement(position, element) { this.inserted = { position, element }; }
   closest(selector) { return selector === "a[href]" ? this.link || null : null; }
 }
 
@@ -42,6 +44,7 @@ function clickVideoLink(href) {
   const document = {
     body,
     querySelector: () => null,
+    querySelectorAll: () => [],
     createElement: (tag) => new MockElement(tag),
     addEventListener: (name, callback) => { documentListeners[name] = callback; },
     removeEventListener: (name) => { delete documentListeners[name]; },
@@ -58,6 +61,25 @@ function clickVideoLink(href) {
   return { event, dialog: body.children[0] };
 }
 
+function mountInlineVideoLink(href) {
+  const documentListeners = {};
+  const body = new MockElement("body");
+  const link = new MockElement("a");
+  link.href = href;
+  link.textContent = "Vídeo do exercício";
+  const document = {
+    body,
+    querySelector: () => null,
+    querySelectorAll: () => [link],
+    createElement: (tag) => new MockElement(tag),
+    addEventListener: (name, callback) => { documentListeners[name] = callback; },
+    removeEventListener: (name) => { delete documentListeners[name]; },
+  };
+  const window = { __jmExercisePlayerInstalled: false, location: { href: "https://jmperformance.app.br/membros/", origin: "https://jmperformance.app.br" } };
+  vm.runInNewContext(exercisePlayerScript, { window, document, Element: MockElement, URL, URLSearchParams });
+  return { link, region: link.inserted?.element, documentListeners };
+}
+
 test("intercepts valid YouTube links and preserves the start time in the embedded player", () => {
   const { event, dialog } = clickVideoLink("https://www.youtube.com/watch?v=rrJIyZGlK8c&t=50s");
   assert.equal(event.defaultPrevented, true);
@@ -66,6 +88,17 @@ test("intercepts valid YouTube links and preserves the start time in the embedde
   assert.equal(frame.src, "https://www.youtube.com/embed/rrJIyZGlK8c?playsinline=1&origin=https%3A%2F%2Fjmperformance.app.br&start=50");
   assert.equal(frame.referrerPolicy, "origin");
   assert.equal(frame.allowFullscreen, true);
+});
+
+test("mounts exercise videos inline automatically and keeps an external fallback", () => {
+  const { link, region } = mountInlineVideoLink("https://www.youtube.com/watch?v=rrJIyZGlK8c&t=50s");
+  assert.equal(link.hidden, true);
+  assert.equal(link.dataset.jmInlinePlayerMounted, "true");
+  assert.equal(region.dataset.jmInlinePlayer, "");
+  const frame = region.children[0].children[0];
+  assert.equal(frame.src, "https://www.youtube.com/embed/rrJIyZGlK8c?playsinline=1&origin=https%3A%2F%2Fjmperformance.app.br&start=50");
+  assert.equal(frame.loading, "lazy");
+  assert.equal(region.children[1].href, "https://www.youtube.com/watch?v=rrJIyZGlK8c&t=50s");
 });
 
 test("intercepts Vimeo exercise links and leaves unrelated domains untouched", () => {
