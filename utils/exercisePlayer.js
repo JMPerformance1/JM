@@ -2,10 +2,19 @@ export const EXERCISE_PLAYER_PATH = "/__jm/exercise-player.js";
 
 export function injectExercisePlayer(html) {
   if (typeof html !== "string" || /data-jm-exercise-player/i.test(html)) return html;
-  const tag = `<script defer src="${EXERCISE_PLAYER_PATH}" data-jm-exercise-player></script>`;
-  return /<\/body\s*>/i.test(html)
-    ? html.replace(/<\/body\s*>/i, `${tag}</body>`)
-    : `${html}${tag}`;
+  const guard = `<style data-jm-player-guard>@keyframes jm-player-fallback { to { visibility:visible; } } html[data-jm-player-pending] a[href*="youtube.com"],html[data-jm-player-pending] a[href*="youtu.be"],html[data-jm-player-pending] a[href*="vimeo.com"] { visibility:hidden !important; animation:jm-player-fallback 0s linear 2s forwards; }</style>`;
+  const tag = `<script defer src="${EXERCISE_PLAYER_PATH}?v=20261119-2" data-jm-exercise-player></script>`;
+  let output = html.replace(/<html\b([^>]*)>/i, (match, attributes) =>
+    /\bdata-jm-player-pending\b/i.test(attributes)
+      ? match
+      : `<html${attributes} data-jm-player-pending>`
+  );
+  output = /<\/head\s*>/i.test(output)
+    ? output.replace(/<\/head\s*>/i, `${guard}</head>`)
+    : output.replace(/<body\b[^>]*>/i, (match) => `${match}${guard}`);
+  return /<\/body\s*>/i.test(output)
+    ? output.replace(/<\/body\s*>/i, `${tag}</body>`)
+    : `${output}${tag}`;
 }
 
 export const exercisePlayerScript = String.raw`(() => {
@@ -152,6 +161,7 @@ export const exercisePlayerScript = String.raw`(() => {
   }, true);
 
   scanForExerciseVideos(document);
+  document.documentElement?.removeAttribute("data-jm-player-pending");
   if (document.body && typeof MutationObserver !== "undefined") {
     new MutationObserver((mutations) => mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => scanForExerciseVideos(node))))
       .observe(document.body, { childList: true, subtree: true });
