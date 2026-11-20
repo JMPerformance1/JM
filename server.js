@@ -5,6 +5,7 @@ import { BRAND } from "./config/brand.js";
 import { normalizeVideoUrl } from "./config/video.js";
 import { createPushNotificationPayload } from "./utils/notificationCopy.js";
 import { isSupportedNotificationPath } from "./utils/notificationNavigation.js";
+import { EXERCISE_PLAYER_PATH, exercisePlayerScript, injectExercisePlayer } from "./utils/exercisePlayer.js";
 
 const CHECKOUT_PLANS = Object.freeze({
   EVOLVE: { amountCents: 20000, durationDays: 30, currency: "BRL" },
@@ -2906,6 +2907,15 @@ async function isCheckinDue(env, sid, checkins) {
 const worker = {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === EXERCISE_PLAYER_PATH) {
+      return new Response(exercisePlayerScript, {
+        headers: {
+          "Content-Type": "application/javascript; charset=utf-8",
+          "Cache-Control": "public, max-age=3600",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
     if (url.pathname === MP_WEBHOOK_PATH) return handleMercadoPagoWebhook(request, env, ctx);
     if (["GET", "HEAD"].includes(request.method) && url.pathname === "/" && env.ASSETS) {
       const landingUrl = new URL("/landing/", url);
@@ -2947,13 +2957,6 @@ const worker = {
     return null;
   }
 })();
-const expectedAuthHost = (() => {
-  try {
-    return new URL(env.PUBLIC_APP_ORIGIN).hostname.replace(/^www\./i, "");
-  } catch {
-    return null;
-  }
-})();
 const receivedAuthOrigin = (() => {
   try {
     const parsed = new URL(suppliedOrigin);
@@ -2964,21 +2967,22 @@ const receivedAuthOrigin = (() => {
   }
 })();
 const rawOriginMismatch = !env.PUBLIC_APP_ORIGIN || suppliedOrigin !== env.PUBLIC_APP_ORIGIN;
+const expectedAuthHost = (() => { try { return new URL(env.PUBLIC_APP_ORIGIN).hostname.replace(/^www\./i, ""); } catch { return null; } })();
 const requestAuthHost = (() => { try { return new URL(request.url).hostname.replace(/^www\./i, ""); } catch { return null; } })();
       const fetchSite = request.headers.get("sec-fetch-site");
       const sameOriginFallback = !origin && !referer && fetchSite === "same-origin" && requestAuthHost === expectedAuthHost;
       // Instagram WebViews can keep an external Instagram Referer and mark the
       // request cross-site even when the page and API are on this canonical host.
-      // Instagram changes its embedded-browser UA markers between app releases.
-      // For login/signup, accept HTTPS origins owned by Instagram (or its Android
-      // app origin) on this canonical host; unrelated origins remain rejected.
+      // For public auth entry points, trust the actual request host only when the
+      // browser omitted Origin or sent an opaque Origin. Explicit foreign Origins
+      // remain rejected, as do these fallbacks on every other route.
       const embeddedAuthPath = url.pathname === "/api/auth/login" || url.pathname === "/api/auth/signup";
       // Login and signup are unauthenticated JSON endpoints. Instagram's
       // Android/iOS WebViews can send a parent-app Origin that changes across
       // releases. Permit these two routes only when the request target itself
       // is the configured canonical app origin; every other API route keeps
       // the strict origin check below.
-      const embeddedAuthFallback = embeddedAuthPath && requestAuthHost && requestAuthHost === expectedAuthHost;
+      const embeddedAuthFallback = embeddedAuthPath && requestAuthHost === expectedAuthHost;
       if (rawOriginMismatch && (!expectedAuthOrigin || receivedAuthOrigin !== expectedAuthOrigin) && !sameOriginFallback && !embeddedAuthFallback) {
         return new Response("Forbidden", { status: 403 });
       }
@@ -6071,16 +6075,26 @@ const buildTree = async (studentId) => studentTree(env, studentId);
 
 export default {
   async fetch(request, env, ctx) {
-    const response = await worker.fetch(request, env, ctx);
+    let response = await worker.fetch(request, env, ctx);
     const headers = new Headers(response.headers);
     const contentType = headers.get("Content-Type") || "";
+    const url = new URL(request.url);
+    if (request.method === "GET" && response.status === 200 && /^text\/html(?:\s*;|$)/i.test(contentType) && !url.pathname.startsWith("/api/")) {
+      const html = await response.text();
+      headers.delete("Content-Length");
+      headers.delete("Content-Encoding");
+      headers.delete("ETag");
+      headers.delete("Last-Modified");
+      headers.set("Cache-Control", "no-cache");
+      response = new Response(injectExercisePlayer(html), { status: response.status, statusText: response.statusText, headers });
+    }
     if (/^text\/html(?:\s*;|$)/i.test(contentType) && !/\bcharset\s*=/i.test(contentType)) {
       headers.set("Content-Type", "text/html; charset=utf-8");
     }
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     headers.set("X-Frame-Options", "DENY");
-    headers.set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+    headers.set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
     if (new URL(request.url).protocol === "https:") headers.set("Strict-Transport-Security", "max-age=31536000");
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   },
